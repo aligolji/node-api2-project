@@ -3,46 +3,42 @@ const Database = require('../data/db');
 
 const router = express.Router();
 
-// WORKS
+// WORKING
 router.post('/', (req, res) => {
     const { title, contents } = req.body;
     const newPost = { title, contents };
 
+    Database.insert(newPost)
     if (!title || !contents) {
         res.status(400).json({ errorMessage: 'Please provide title and contents for the post.' });
     } else if (title && contents) {
-        // Database.insert(newPost)  // saves to database without this - odd?
         res.status(201).json(newPost);
     } else if (Error) {
         res.status(500).json({ error: 'There was an error while saving the post to the database.' });
     }
 });
 
-
-// DOESN'T WORK
+// error 400 returned - provide text for comment
 router.post('/:id/comments', (req, res) => {
-    const { id } = req.params;
-    const comment = req.body;
-    // const newText = newComment.text;
+    const id = req.params.id;
+    const { text } = req.body;
+    const newComment = { text };
 
-    Database.insertComment(comment)
-
-        .then(comment => {
-            if (comment.id == Number(id)) {
-                // Database.insertComment(newComment)
-                res.status(201).json(comment)
-            } else if (!comment) {
+    Database.findById(Number(id))
+        .then(post => {
+            if (newComment) {
+                Database.insertComment(newComment);
+                res.status(201).json(newComment);
+            } else if (!newComment.length) {
                 res.status(400).json({ errorMessage: 'Please provide text for the comment.' });
             } else if (comment.id !== Number(id)) {
                 res.status(404).json({ message: 'The post with the specified ID does not exist.' });
             }
         })
-
         .catch(error => {
             res.status(500).json({ error: 'There was an error while saving the comment to the database.' });
         });
 });
-
 
 // WORKING
 router.get('/', (req, res) => {
@@ -56,14 +52,13 @@ router.get('/', (req, res) => {
         })
 });
 
-
-// WORKING - but returns empty array when id does not exist
+// WORKING
 router.get('/:id', (req, res) => {
     Database.findById(Number(req.params.id))
         .then(post => {
-            if (post) {
+            if (post.length) {
                 res.status(200).json(post);
-            } else { //returns empty array with status 200
+            } else {
                 res.status(404).json({ message: 'The post with the specified ID does not exist.' });
             }
         })
@@ -73,13 +68,12 @@ router.get('/:id', (req, res) => {
         })
 });
 
-
-// WORKING - but returns all posts with matching 'post_id'
+// WORKING 
 router.get('/:id/comments', (req, res) => {
     Database.findPostComments(Number(req.params.id))
         .then(posts => {
             if (posts) {
-                res.status(200).json(posts);    //returns with matching post_id's
+                res.status(200).json(posts);
             } else {
                 res.status(404).json({ message: 'The post with the specified ID does not exist.' });
             }
@@ -90,15 +84,45 @@ router.get('/:id/comments', (req, res) => {
         })
 });
 
-
+// WORKING
 router.delete('/:id', (req, res) => {
-    res.status(200).json({ hello: 'posts' })
+    const id = req.params.id
+
+    Database.remove(id)
+        .then(count => {
+            if (count > 0) {
+                res.status(200).json({ message: `Post with ID ${id} successfully deleted.` });
+            } else {
+                res.status(404).json({ message: 'The post with the specified ID does not exist.' });
+            }
+        })
+        .catch(error => {
+            console.log(error);
+            res.status(500).json({ error: 'The post could not be removed.' });
+        });
 });
 
-
-
+// WORKING - updates the post - returns '1'
 router.put('/:id', (req, res) => {
-    res.status(200).json({ hello: 'posts' })
+    const id = req.params.id;
+    const { title, contents } = req.body;
+    const updates = { title, contents };
+
+    Database.update(id, updates)
+        .then(post => {
+            if (title.length && contents.length) {
+                res.status(200).json(post)
+            } else if (!post.length) {
+                res.status(404).json({ message: 'The post with the specified ID does not exist.' });
+            } else if
+                (!title || !contents) {
+                res.status(400).json({ errorMessage: 'Please provide title and contents for the post.' })
+            }
+        })
+        .catch(error => {
+            console.log(error);
+            res.status(500).json({ error: 'The post information could not be modified.' });
+        })
 });
 
 
